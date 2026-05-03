@@ -3,7 +3,7 @@
 WhisperHotkey — Local speech-to-text via faster-whisper.
 
 Usage:
-  Hold RIGHT OPTION (⌥) to record. Release to transcribe and paste.
+  HOLD Ctrl+Shift+Right Arrow to record. RELEASE to transcribe and paste.
 
 Requires macOS Accessibility and Microphone permissions.
 """
@@ -23,15 +23,8 @@ from faster_whisper import WhisperModel
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-# Hotkey to hold while speaking. Common choices:
-#   keyboard.Key.alt_r      → Right Option  (default)
-#   keyboard.Key.f13        → F13 key
-#   keyboard.Key.cmd_r      → Right Command key
-HOTKEY = keyboard.Key.alt_r
-
 # Whisper model size. Larger = more accurate but slower to load/transcribe.
 # Options: "tiny.en", "base.en", "small.en", "medium.en", "tiny", "base", "small", "medium", "large-v3"
-# The ".en" variants are English-only and faster. Remove ".en" for multilingual support.
 MODEL_SIZE = "base.en"
 
 # Audio settings
@@ -51,9 +44,8 @@ def load_model():
     global model
     print(f"Loading Whisper '{MODEL_SIZE}' model (first run downloads it)...")
     model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
-    print("Ready.  Hold Key.alt_r to record, release to transcribe and paste.")
-    print("Press Ctrl+C to quit.")
-    print()
+    print("\nReady. HOLD Ctrl + Shift + Right Arrow to record. RELEASE to transcribe and paste.")
+    print("Press Ctrl+C to quit.\n")
 
 
 def paste_text(text):
@@ -146,30 +138,54 @@ def stop_and_transcribe():
 
 # ── Hotkey Listener ────────────────────────────────────────────────────────────
 
+COMBINATION = {keyboard.Key.ctrl, keyboard.Key.shift, keyboard.Key.right}
+current_keys = set()
+
+def get_canonical_key(key):
+    """Normalize left/right modifier keys to a standard key to handle both sides."""
+    if key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
+        return keyboard.Key.ctrl
+    if key in (keyboard.Key.shift_l, keyboard.Key.shift_r):
+        return keyboard.Key.shift
+    if hasattr(key, 'char') and key.char is not None:
+        return keyboard.KeyCode.from_char(key.char.lower())
+    return key
+
 def on_press(key):
     """Handle key press events."""
     global recording
-    if key == HOTKEY and not recording:
+    canonical_key = get_canonical_key(key)
+    current_keys.add(canonical_key)
+    
+    # If all keys in our combo are currently held down
+    if COMBINATION.issubset(current_keys) and not recording:
         start_recording()
 
 
 def on_release(key):
     """Handle key release events."""
-    if key == HOTKEY and recording:
+    global recording
+    canonical_key = get_canonical_key(key)
+    
+    # If we are recording and ANY key from the combo is released, stop
+    if recording and canonical_key in COMBINATION:
         threading.Thread(target=stop_and_transcribe, daemon=True).start()
+        
+    # Clean up the key from our tracking set
+    if canonical_key in current_keys:
+        current_keys.remove(canonical_key)
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     load_model()
-
+    
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         try:
             listener.join()
         except KeyboardInterrupt:
             print("\nQuitting.")
-
 
 if __name__ == "__main__":
     main()
