@@ -3,7 +3,7 @@
 WhisperHotkey — Local speech-to-text via faster-whisper.
 
 Usage:
-  HOLD Ctrl+Shift+Right Arrow to record. RELEASE to transcribe and paste.
+  HOLD Ctrl+Shift+Up Arrow to record. RELEASE to transcribe and paste.
 
 Requires macOS Accessibility and Microphone permissions.
 """
@@ -44,7 +44,7 @@ def load_model():
     global model
     print(f"Loading Whisper '{MODEL_SIZE}' model (first run downloads it)...")
     model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
-    print("\nReady. HOLD Ctrl + Shift + Right Arrow to record. RELEASE to transcribe and paste.")
+    print("\nReady. HOLD Ctrl + Shift + Up Arrow to record. RELEASE to transcribe and paste.")
     print("Press Ctrl+C to quit.\n")
 
 
@@ -138,7 +138,7 @@ def stop_and_transcribe():
 
 # ── Hotkey Listener ────────────────────────────────────────────────────────────
 
-COMBINATION = {keyboard.Key.ctrl, keyboard.Key.shift, keyboard.Key.right}
+COMBINATION = {keyboard.Key.ctrl, keyboard.Key.shift, keyboard.Key.up}
 current_keys = set()
 
 def get_canonical_key(key):
